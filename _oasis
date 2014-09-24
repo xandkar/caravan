@@ -1,0 +1,21 @@
+# vim: filetype=yaml:tabstop=2:softtabstop=2:shiftwidth=2:
+
+OASISFormat : 0.4
+Name        : caravan
+Version     : 0.0.0
+Synopsis    : Framework for writing integration tests in, but not necessarily
+              for, OCaml, loosely inspired by Erlang/OTP's Common Test.
+Authors     : Siraaj Khandkar <siraaj@khandkar.net>
+License     : MIT
+
+Library caravan
+  Path           : ./src/caravan
+  FindlibName    : caravan
+  Install        : false
+  Modules        : Caravan
+  BuildTools     : ocamlbuild
+  CompiledObject : native
+  BuildDepends   : threads
+                 , core
+                 , async
+                 , textutils
