@@ -51,18 +51,25 @@ let reporter ~results_r =
         columns
         rows
     in
-    print_endline table
+    print_endline table;
+    return ()
   in
-  let rec gather results =
+  let rec gather results total_failures =
     Pipe.read results_r
     >>= function
       | `Eof  -> printf "\n\n%!";
-                 return results
+                 return (results, total_failures)
       | `Ok r -> post_progress r;
-                 gather (r :: results)
+                 let total_failures =
+                   match r with
+                   | Test.Pass _ ->      total_failures
+                   | Test.Fail _ -> succ total_failures
+                 in
+                 gather (r :: results) total_failures
   in
-  gather [] >>| fun results ->
-  report results
+  gather [] 0    >>= fun (results, total_failures) ->
+  report results >>| fun () ->
+  total_failures
 
 let runner ~tests ~init_state:init ~results_w =
   let run state1 {Test.meta; Test.case} =
@@ -84,3 +91,5 @@ let run ~tests ~init_state =
   let results_r, results_w = Pipe.create () in
   don't_wait_for (runner   ~results_w ~tests ~init_state);
                   reporter ~results_r
+  >>= fun total_failures ->
+  exit total_failures
