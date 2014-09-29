@@ -14,8 +14,8 @@ module Test = struct
     }
 
   type 'state result =
-    | Pass of meta * 'state
-    | Fail of meta * exn
+    | Pass of meta * float * 'state
+    | Fail of meta * float * exn
 end
 
 
@@ -26,9 +26,11 @@ let post_progress = function
 let reporter ~results_r =
   let report results =
     let rows =
+      let f2s = sprintf "%.2f" in
+      let e2s = Exn.to_string in
       List.map (List.rev results) ~f:(function
-      | Test.Pass ({Test.title; _}, _) -> (`Pass, title, "")
-      | Test.Fail ({Test.title; _}, e) -> (`Fail, title, (Exn.to_string e))
+      | Test.Pass ({Test.title; _}, tm, _) -> (`Pass, title, (f2s tm), "")
+      | Test.Fail ({Test.title; _}, tm, e) -> (`Fail, title, (f2s tm), (e2s e))
       );
     in
     let module Table = Textutils.Ascii_table in
@@ -36,11 +38,12 @@ let reporter ~results_r =
       [ Table.Column.create_attr
           "Status"
           ( function
-          | `Pass, _, _ -> [`Bright; `White; `Bg `Green], " PASS "
-          | `Fail, _, _ -> [`Bright; `White; `Bg `Red  ], " FAIL "
+          | `Pass, _, _, _ -> [`Bright; `White; `Bg `Green], " PASS "
+          | `Fail, _, _, _ -> [`Bright; `White; `Bg `Red  ], " FAIL "
           )
-      ; Table.Column.create "Title" (fun (_, t, _) -> t)
-      ; Table.Column.create "Debug" (fun (_, _, e) -> e) ~show:`If_not_empty
+      ; Table.Column.create "Title" (fun (_, t,  _, _) -> t)
+      ; Table.Column.create "Time"  (fun (_, _, tm, _) -> tm)
+      ; Table.Column.create "Debug" (fun (_, _,  _, e) -> e) ~show:`If_not_empty
       ]
     in
     let table =
@@ -72,16 +75,19 @@ let reporter ~results_r =
 
 let runner ~tests ~init_state:init ~results_w =
   let run state1 {Test.meta; Test.case} =
+    let time_started = Unix.gettimeofday () in
     try_with ~extract_exn:true (fun () -> case state1)
-    >>| begin function
-      | Ok state2 -> Test.Pass (meta, state2)
-      | Error exn -> Test.Fail (meta, exn)
+    >>| begin fun result ->
+      let time_elapsed = Unix.gettimeofday () -. time_started in
+      match result with
+      | Ok state2 -> Test.Pass (meta, time_elapsed, state2)
+      | Error exn -> Test.Fail (meta, time_elapsed, exn)
     end
     >>| fun result ->
     Pipe.write_without_pushback results_w result;
     match result with
-    | Test.Pass (_, state2) -> state2
-    | Test.Fail (_,      _) -> state1
+    | Test.Pass (_, _, state2) -> state2
+    | Test.Fail (_, _,      _) -> state1
   in
   Deferred.List.fold tests ~init ~f:run >>| fun _state ->
   Pipe.close results_w
