@@ -39,12 +39,14 @@ let reporter ~results_r =
       ; Table.Column.create "Exception" (fun (_, _, e) -> e)
       ]
     in
-    Table.output
-      ~oc:stdout
-      ~display:Table.Display.tall_box
-      ~bars:`Unicode
-      columns
-      rows
+    let table =
+      Table.to_string
+        ~display:Table.Display.tall_box
+        ~bars:`Unicode
+        columns
+        rows
+    in
+    print_endline table
   in
   let rec gather results =
     Pipe.read results_r
