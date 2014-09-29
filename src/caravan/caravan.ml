@@ -28,13 +28,18 @@ let reporter ~results_r =
   let report results =
     let rows =
       List.map (List.rev results) ~f:(function
-      | Test.Pass ({Test.title; _}, _) -> ("PASS", title, "")
-      | Test.Fail ({Test.title; _}, e) -> ("FAIL", title, (Exn.to_string e))
+      | Test.Pass ({Test.title; _}, _) -> (`Pass, title, "")
+      | Test.Fail ({Test.title; _}, e) -> (`Fail, title, (Exn.to_string e))
       );
     in
     let module Table = Textutils.Ascii_table in
     let columns =
-      [ Table.Column.create "Status"    (fun (s, _, _) -> s)
+      [ Table.Column.create_attr
+          "Status"
+          ( function
+          | `Pass, _, _ -> [`Bright; `White; `Bg `Green], " PASS "
+          | `Fail, _, _ -> [`Bright; `White; `Bg `Red  ], " FAIL "
+          )
       ; Table.Column.create "Title"     (fun (_, t, _) -> t)
       ; Table.Column.create "Exception" (fun (_, _, e) -> e)
       ]
