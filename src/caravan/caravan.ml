@@ -40,7 +40,7 @@ let reporter ~results_r =
           | `Fail, _, _ -> [`Bright; `White; `Bg `Red  ], " FAIL "
           )
       ; Table.Column.create "Title" (fun (_, t, _) -> t)
-      ; Table.Column.create "Debug" (fun (_, _, e) -> e)
+      ; Table.Column.create "Debug" (fun (_, _, e) -> e) ~show:`If_not_empty
       ]
     in
     let table =
