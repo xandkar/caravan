@@ -19,8 +19,7 @@ module Test = struct
 end
 
 
-let post_progress =
-  function
+let post_progress = function
   | Test.Pass _ -> printf "."
   | Test.Fail _ -> printf "F"
 
