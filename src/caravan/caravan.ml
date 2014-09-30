@@ -11,6 +11,7 @@ module Test = struct
   type 'state t =
     { meta : meta
     ; case : 'state -> 'state Deferred.t
+    ; children : 'state t list
     }
 
   type 'state result =
@@ -72,8 +73,8 @@ let reporter ~results_r =
   print_endline (report_of_results results);
   return total_failures
 
-let runner ~tests ~init_state:init ~results_w =
-  let run state1 {Test.meta; Test.case} =
+let runner ~tests ~init_state ~results_w =
+  let rec run_parent {Test.meta; case; children} ~state:state1 =
     let time_started = Unix.gettimeofday () in
     try_with ~extract_exn:true (fun () -> case state1)
     >>= fun output ->
@@ -83,10 +84,15 @@ let runner ~tests ~init_state:init ~results_w =
     in
     Pipe.write_without_pushback results_w result;
     match output with
-    | Ok state2 -> return state2
-    | Error _   -> return state1
+    | Ok state2 -> run_children ~state:state2 children
+    | Error _   -> run_children ~state:state1 children  (* TODO: Skip when parent failed *)
+  and run_children tests ~state =
+    Deferred.List.iter
+      tests
+      ~how:`Parallel
+      ~f:(run_parent ~state)
   in
-  Deferred.List.fold tests ~init ~f:run >>| fun _state ->
+  run_children tests ~state:init_state >>| fun () ->
   Pipe.close results_w
 
 let run ~tests ~init_state =
