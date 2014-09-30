@@ -43,7 +43,7 @@ let reporter ~results_r =
           )
       ; Table.Column.create "Title" (fun (_, t,  _, _) -> t)
       ; Table.Column.create "Time"  (fun (_, _, tm, _) -> tm)
-      ; Table.Column.create "Debug" (fun (_, _,  _, e) -> e) ~show:`If_not_empty
+      ; Table.Column.create "Error" (fun (_, _,  _, e) -> e) ~show:`If_not_empty
       ]
     in
     let table =
