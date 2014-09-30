@@ -3,7 +3,7 @@ open Async.Std
 
 module Test : sig
   type meta =
-    { title       : string
+    { name        : string
     ; description : string
     }
 
