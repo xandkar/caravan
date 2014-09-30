@@ -50,6 +50,17 @@ module Test = struct
     ; output : ('state, exn) Result.t
     ; log    : string list
     }
+
+  type 'state add_children =
+       'state t
+    -> 'state t list
+    -> 'state t
+
+  let add_children ({children; _} as t) ts =
+    {t with children = children @ ts}
+
+  let (+) =
+    add_children
 end
 
 

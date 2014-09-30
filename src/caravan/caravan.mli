@@ -18,6 +18,15 @@ module Test : sig
     ; case     : 'state -> log:Log.t -> 'state Deferred.t
     ; children : 'state t list
     }
+
+  type 'state add_children =
+       'state t
+    -> 'state t list
+    -> 'state t
+
+  val add_children : 'state add_children
+
+  val (+) : 'state add_children
 end
 
 val run
