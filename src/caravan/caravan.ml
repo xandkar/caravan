@@ -55,17 +55,18 @@ let reporter ~results_r =
       rows
   in
   let rec gather results total_failures =
-    Pipe.read results_r
-    >>= function
-      | `Eof  -> printf "\n\n%!";
-                 return (results, total_failures)
-      | `Ok r -> post_progress r.Test.output;
-                 let total_failures =
-                   match r.Test.output with
-                   | Ok    _ ->      total_failures
-                   | Error _ -> succ total_failures
-                 in
-                 gather (r :: results) total_failures
+    Pipe.read results_r >>= function
+    | `Eof  ->
+        printf "\n\n%!";
+        return (results, total_failures)
+    | `Ok r ->
+        post_progress r.Test.output;
+        let total_failures =
+          match r.Test.output with
+          | Ok    _ ->      total_failures
+          | Error _ -> succ total_failures
+        in
+        gather (r :: results) total_failures
   in
   gather [] 0 >>= fun (results, total_failures) ->
   print_endline (report_of_results results);
