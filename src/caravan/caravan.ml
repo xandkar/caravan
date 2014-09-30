@@ -26,7 +26,7 @@ let post_progress = function
   | Error _ -> printf "F"
 
 let reporter ~results_r =
-  let report results =
+  let report_of_results results =
     let module C = Textutils.Ascii_table.Column in
     let module T = Test in
     let rows = List.rev results in
@@ -48,15 +48,11 @@ let reporter ~results_r =
           )
       ]
     in
-    let table =
-      Textutils.Ascii_table.to_string
-        ~display:Textutils.Ascii_table.Display.tall_box
-        ~bars:`Unicode
-        columns
-        rows
-    in
-    print_endline table;
-    return ()
+    Textutils.Ascii_table.to_string
+      ~display:Textutils.Ascii_table.Display.tall_box
+      ~bars:`Unicode
+      columns
+      rows
   in
   let rec gather results total_failures =
     Pipe.read results_r
@@ -71,9 +67,9 @@ let reporter ~results_r =
                  in
                  gather (r :: results) total_failures
   in
-  gather [] 0    >>= fun (results, total_failures) ->
-  report results >>| fun () ->
-  total_failures
+  gather [] 0 >>= fun (results, total_failures) ->
+  print_endline (report_of_results results);
+  return total_failures
 
 let runner ~tests ~init_state:init ~results_w =
   let run state1 {Test.meta; Test.case} =
