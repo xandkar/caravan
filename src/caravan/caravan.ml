@@ -27,30 +27,30 @@ let post_progress = function
 
 let reporter ~results_r =
   let report results =
-    let rows =
-      let f2s = sprintf "%.2f" in
-      let e2s = Exn.to_string in
-      List.map (List.rev results) ~f:(function
-      | {Test.meta={Test.name; _}; time; output = Ok _   } -> (`Pass, name, (f2s time), "")
-      | {Test.meta={Test.name; _}; time; output = Error e} -> (`Fail, name, (f2s time), (e2s e))
-      );
-    in
-    let module Table = Textutils.Ascii_table in
+    let module C = Textutils.Ascii_table.Column in
+    let module T = Test in
+    let rows = List.rev results in
     let columns =
-      [ Table.Column.create_attr
+      [ C.create_attr
           "Status"
           ( function
-          | `Pass, _, _, _ -> [`Bright; `White; `Bg `Green], " PASS "
-          | `Fail, _, _, _ -> [`Bright; `White; `Bg `Red  ], " FAIL "
+          | {T.output = Ok    _; _} -> [`Bright; `White; `Bg `Green], " PASS "
+          | {T.output = Error _; _} -> [`Bright; `White; `Bg `Red  ], " FAIL "
           )
-      ; Table.Column.create "Name"  (fun (_, n,  _, _) -> n)
-      ; Table.Column.create "Time"  (fun (_, _, tm, _) -> tm)
-      ; Table.Column.create "Error" (fun (_, _,  _, e) -> e) ~show:`If_not_empty
+      ; C.create "Name"  (fun {T.meta={T.name; _}; _} -> name)
+      ; C.create "Time"  (fun {T.time            ; _} -> sprintf "%.2f" time)
+      ; C.create
+          "Error"
+          ~show:`If_not_empty
+          ( function
+          | {T.output = Ok    _; _} -> ""
+          | {T.output = Error e; _} -> Exn.to_string e
+          )
       ]
     in
     let table =
-      Table.to_string
-        ~display:Table.Display.tall_box
+      Textutils.Ascii_table.to_string
+        ~display:Textutils.Ascii_table.Display.tall_box
         ~bars:`Unicode
         columns
         rows
