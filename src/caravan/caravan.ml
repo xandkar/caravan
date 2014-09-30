@@ -9,8 +9,8 @@ module Test = struct
     }
 
   type 'state t =
-    { meta : meta
-    ; case : 'state -> 'state Deferred.t
+    { meta     : meta
+    ; case     : 'state -> 'state Deferred.t
     ; children : 'state t list
     }
 
