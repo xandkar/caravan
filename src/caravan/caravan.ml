@@ -2,6 +2,36 @@ open Core.Std
 open Async.Std
 
 
+module Log : sig
+  type t
+
+  val create : unit -> t
+
+  val post : t -> msg:string -> unit
+
+  val dump : t -> string list Deferred.t
+end = struct
+  type t =
+    { r : string Pipe.Reader.t
+    ; w : string Pipe.Writer.t
+    }
+
+  let create () =
+    let r, w = Pipe.create () in
+    {r; w}
+
+  let post {w} ~msg =
+    let timestamp = Time.to_string (Time.now ()) in
+    let msg = timestamp ^ " => " ^ msg in
+    Pipe.write_without_pushback w msg
+
+  let dump {r; w} =
+    Pipe.close w;
+    Pipe.to_list r >>| fun msgs ->
+    msgs
+
+end
+
 module Test = struct
   type meta =
     { name        : string
@@ -10,7 +40,7 @@ module Test = struct
 
   type 'state t =
     { meta     : meta
-    ; case     : 'state -> 'state Deferred.t
+    ; case     : 'state -> log:Log.t -> 'state Deferred.t
     ; children : 'state t list
     }
 
@@ -18,6 +48,7 @@ module Test = struct
     { meta   : meta
     ; time   : float
     ; output : ('state, exn) Result.t
+    ; log    : string list
     }
 end
 
@@ -47,11 +78,16 @@ let reporter ~results_r =
           | {T.output = Ok    _; _} -> ""
           | {T.output = Error e; _} -> Exn.to_string e
           )
+      ; C.create
+          "Log"
+          ~show:`If_not_empty
+          (fun {T.log; _} -> String.concat log ~sep:"\n")
       ]
     in
     Textutils.Ascii_table.to_string
       ~display:Textutils.Ascii_table.Display.tall_box
       ~bars:`Unicode
+      ~limit_width_to:200   (* TODO: Should be configurable *)
       columns
       rows
   in
@@ -75,13 +111,14 @@ let reporter ~results_r =
 
 let runner ~tests ~init_state ~results_w =
   let rec run_parent {Test.meta; case; children} ~state:state1 =
+    let log = Log.create () in
     let time_started = Unix.gettimeofday () in
-    try_with ~extract_exn:true (fun () -> case state1)
+    try_with ~extract_exn:true (fun () -> case state1 ~log)
     >>= fun output ->
-    let result =
-      let time = Unix.gettimeofday () -. time_started in
-      {Test.meta; time; output}
-    in
+    let time = Unix.gettimeofday () -. time_started in
+    Log.dump log
+    >>= fun log ->
+    let result = {Test.meta; time; output; log} in
     Pipe.write_without_pushback results_w result;
     match output with
     | Ok state2 -> run_children ~state:state2 children

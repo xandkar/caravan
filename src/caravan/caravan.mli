@@ -1,6 +1,12 @@
 open Core.Std
 open Async.Std
 
+module Log : sig
+  type t
+
+  val post : t -> msg:string -> unit
+end
+
 module Test : sig
   type meta =
     { name        : string
@@ -9,7 +15,7 @@ module Test : sig
 
   type 'state t =
     { meta     : meta
-    ; case     : 'state -> 'state Deferred.t
+    ; case     : 'state -> log:Log.t -> 'state Deferred.t
     ; children : 'state t list
     }
 end
