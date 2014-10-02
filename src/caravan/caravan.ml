@@ -3,33 +3,70 @@ open Async.Std
 
 
 module Log : sig
+  module Msg : sig
+    type t
+  end
+
   type t
 
-  val create : unit -> t
+  exception Attempt_to_write_to_closed_log_channel
 
-  val post : t -> msg:string -> unit
+  val initialize : unit -> t
 
-  val dump : t -> string list Deferred.t
+  val post : t -> string -> unit
+
+  val finalize : t -> Msg.t list Deferred.t
+  (** [finalize] is idempotent. *)
+
+  val msgs_to_string : Msg.t list -> string
 end = struct
-  type t =
-    { r : string Pipe.Reader.t
-    ; w : string Pipe.Writer.t
+  module Msg = struct
+    type t =
+      { timestamp : Time.t
+      ; payload   : string
+      }
+
+    let to_string {timestamp; payload} =
+      sprintf "%s => %s" (Time.to_string timestamp) payload
+  end
+
+  type channel =
+    { r : Msg.t Pipe.Reader.t
+    ; w : Msg.t Pipe.Writer.t
     }
 
-  let create () =
+  type state =
+    | Open   of channel
+    | Closed of Msg.t list
+
+  type t =
+    state ref
+
+  exception Attempt_to_write_to_closed_log_channel
+
+  let initialize () =
     let r, w = Pipe.create () in
-    {r; w}
+    ref (Open {r; w})
 
-  let post {w; _} ~msg =
-    let timestamp = Time.to_string (Time.now ()) in
-    let msg = timestamp ^ " => " ^ msg in
-    Pipe.write_without_pushback w msg
+  let post t payload =
+    match !t with
+    | Open {w; _} ->
+        Pipe.write_without_pushback w {Msg.timestamp = Time.now (); payload}
+    | Closed _ ->
+        raise Attempt_to_write_to_closed_log_channel
 
-  let dump {r; w} =
-    Pipe.close w;
-    Pipe.to_list r >>| fun msgs ->
-    msgs
+  let finalize t =
+    match !t with
+    | Open {r; w} ->
+        Pipe.close w;
+        Pipe.to_list r >>= fun msgs ->
+        t := Closed msgs;
+        return msgs
+    | Closed msgs ->
+        return msgs
 
+  let msgs_to_string msgs =
+    String.concat ~sep:"\n" (List.map msgs ~f:Msg.to_string)
 end
 
 module Test = struct
@@ -42,7 +79,7 @@ module Test = struct
       { id     : Id.t
       ; time   : Time.Span.t
       ; output : ('state, exn) Result.t
-      ; log    : string list
+      ; log    : Log.Msg.t list
       }
   end
 
@@ -94,7 +131,7 @@ let reporter ~results_r =
       ; C.create
           "Log"
           ~show:`If_not_empty
-          (fun {R.log; _} -> String.concat log ~sep:"\n")
+          (fun {R.log; _} -> Log.msgs_to_string log)
       ]
     in
     Textutils.Ascii_table.to_string
@@ -125,15 +162,15 @@ let reporter ~results_r =
 
 let runner ~tests ~init_state ~results_w =
   let rec run_parent {Test.id; case; children} ~state:state1 =
-    let log = Log.create () in
+    let log_channel = Log.initialize () in
     let time_started = Time.now () in
-    try_with ~extract_exn:true (fun () -> case state1 ~log)
+    try_with ~extract_exn:true (fun () -> case state1 ~log:log_channel)
     >>= fun output ->
     let time_finished = Time.now () in
     let time_elapsed = Time.diff time_finished time_started in
-    Log.dump log
-    >>= fun log ->
-    let result = Test.Result.({id; time=time_elapsed; output; log}) in
+    Log.finalize log_channel
+    >>= fun log_msgs ->
+    let result = Test.Result.({id; time=time_elapsed; output; log=log_msgs}) in
     Pipe.write_without_pushback results_w result;
     match output with
     | Ok state2 -> run_children ~state:state2 children

@@ -4,7 +4,12 @@ open Async.Std
 module Log : sig
   type t
 
-  val post : t -> msg:string -> unit
+  exception Attempt_to_write_to_closed_log_channel
+  (** This can happen if [post] is attempted outside of a test case's scope.
+    * Which could only happen if user deliberatley leaks [t] outside the test
+    * case thunk. *)
+
+  val post : t -> string -> unit
 end
 
 module Test : sig
