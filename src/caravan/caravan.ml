@@ -75,12 +75,16 @@ module Test = struct
   end
 
   module Result = struct
-    type 'state t =
+    type 'state result =
       { id     : Id.t
       ; time   : Time.Span.t
       ; output : ('state, exn) Result.t
       ; log    : Log.Msg.t list
       }
+
+    type 'state t =
+      | Ran     of 'state result
+      | Skipped of Id.t
   end
 
   type 'state t =
@@ -102,36 +106,41 @@ module Test = struct
 end
 
 
-let post_progress = function
-  | Ok    _ -> printf "."
-  | Error _ -> printf "F"
-
 let reporter ~results_r =
   let report_of_results results =
     let module C = Textutils.Ascii_table.Column in
     let module R = Test.Result in
     let time_span_to_string ts = sprintf "%.2f" (Time.Span.to_float ts) in
+    let na = "N/A" in
+    let get_id = function
+      | R.Ran {R.id; _} -> id
+      | R.Skipped id    -> id
+    in
+    let get_status = function
+      | R.Ran {R.output = Ok    _; _} -> [`Bright; `White; `Bg `Green], " PASS "
+      | R.Ran {R.output = Error _; _} -> [`Bright; `White; `Bg `Red  ], " FAIL "
+      | R.Skipped _                   -> [`Reverse                   ], " SKIP "
+    in
+    let get_time = function
+      | R.Ran {R.time; _} -> time_span_to_string time
+      | R.Skipped _       -> na
+    in
+    let get_error = function
+      | R.Ran {R.output = Ok    _; _} -> ""
+      | R.Ran {R.output = Error e; _} -> Exn.to_string e
+      | R.Skipped _                   -> na
+    in
+    let get_log = function
+      | R.Ran {R.log; _} -> Log.msgs_to_string log
+      | R.Skipped _      -> na
+    in
     let rows = List.rev results in
     let columns =
-      [ C.create_attr
-          "Status"
-          ( function
-          | {R.output = Ok    _; _} -> [`Bright; `White; `Bg `Green], " PASS "
-          | {R.output = Error _; _} -> [`Bright; `White; `Bg `Red  ], " FAIL "
-          )
-      ; C.create "ID"   (fun {R.id   ; _} -> id)
-      ; C.create "Time" (fun {R.time ; _} -> time_span_to_string time)
-      ; C.create
-          "Error"
-          ~show:`If_not_empty
-          ( function
-          | {R.output = Ok    _; _} -> ""
-          | {R.output = Error e; _} -> Exn.to_string e
-          )
-      ; C.create
-          "Log"
-          ~show:`If_not_empty
-          (fun {R.log; _} -> Log.msgs_to_string log)
+      [ C.create_attr "Status" get_status
+      ; C.create      "ID"     get_id
+      ; C.create      "Time"   get_time
+      ; C.create      "Error"  get_error ~show:`If_not_empty
+      ; C.create      "Log"    get_log   ~show:`If_not_empty
       ]
     in
     Textutils.Ascii_table.to_string
@@ -147,12 +156,18 @@ let reporter ~results_r =
         printf "\n\n%!";
         return (results, total_failures)
     | `Ok r ->
-        let {Test.Result.output; _} = r in
-        post_progress output;
+        let module R = Test.Result in
+        let post_progress = function
+          | R.Ran {R.output = Ok    _; _} -> printf "."
+          | R.Ran {R.output = Error _; _} -> printf "F"
+          | R.Skipped _                   -> printf "-"
+        in
+        post_progress r;
         let total_failures =
-          match output with
-          | Ok    _ ->      total_failures
-          | Error _ -> succ total_failures
+          match r with
+          | R.Skipped _                 ->      total_failures
+          | R.Ran {R.output=Ok    _; _} ->      total_failures
+          | R.Ran {R.output=Error _; _} -> succ total_failures
         in
         gather (r :: results) total_failures
   in
@@ -161,20 +176,32 @@ let reporter ~results_r =
   return total_failures
 
 let runner ~tests ~init_state ~results_w =
-  let rec run_parent {Test.id; case; children} ~state:state1 =
+  let rec skip_parent {Test.id; children; _} =
+    let result = Test.Result.(Skipped id) in
+    Pipe.write_without_pushback results_w result;
+    skip_children children
+  and skip_children tests =
+    Deferred.List.iter
+      tests
+      ~how:`Parallel
+      ~f:skip_parent
+  in
+  let rec run_parent {Test.id; case; children} ~state =
     let log_channel = Log.initialize () in
     let time_started = Time.now () in
-    try_with ~extract_exn:true (fun () -> case state1 ~log:log_channel)
+    try_with ~extract_exn:true (fun () -> case state ~log:log_channel)
     >>= fun output ->
     let time_finished = Time.now () in
     let time_elapsed = Time.diff time_finished time_started in
     Log.finalize log_channel
     >>= fun log_msgs ->
-    let result = Test.Result.({id; time=time_elapsed; output; log=log_msgs}) in
+    let result =
+      Test.Result.(Ran {id; time=time_elapsed; output; log=log_msgs})
+    in
     Pipe.write_without_pushback results_w result;
     match output with
-    | Ok state2 -> run_children ~state:state2 children
-    | Error _   -> run_children ~state:state1 children  (* TODO: Skip when parent failed *)
+    | Ok state ->  run_children children ~state:state
+    | Error _  -> skip_children children
   and run_children tests ~state =
     Deferred.List.iter
       tests
