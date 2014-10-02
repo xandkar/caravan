@@ -33,22 +33,23 @@ end = struct
 end
 
 module Test = struct
-  type meta =
-    { name        : string
-    ; description : string
-    }
+  module Id = struct
+    type t = string
+  end
+
+  module Result = struct
+    type 'state t =
+      { id     : Id.t
+      ; time   : float
+      ; output : ('state, exn) Result.t
+      ; log    : string list
+      }
+  end
 
   type 'state t =
-    { meta     : meta
+    { id       : Id.t
     ; case     : 'state -> log:Log.t -> 'state Deferred.t
     ; children : 'state t list
-    }
-
-  type 'state result =
-    { meta   : meta
-    ; time   : float
-    ; output : ('state, exn) Result.t
-    ; log    : string list
     }
 
   type 'state add_children =
@@ -71,28 +72,28 @@ let post_progress = function
 let reporter ~results_r =
   let report_of_results results =
     let module C = Textutils.Ascii_table.Column in
-    let module T = Test in
+    let module R = Test.Result in
     let rows = List.rev results in
     let columns =
       [ C.create_attr
           "Status"
           ( function
-          | {T.output = Ok    _; _} -> [`Bright; `White; `Bg `Green], " PASS "
-          | {T.output = Error _; _} -> [`Bright; `White; `Bg `Red  ], " FAIL "
+          | {R.output = Ok    _; _} -> [`Bright; `White; `Bg `Green], " PASS "
+          | {R.output = Error _; _} -> [`Bright; `White; `Bg `Red  ], " FAIL "
           )
-      ; C.create "Name"  (fun {T.meta={T.name; _}; _} -> name)
-      ; C.create "Time"  (fun {T.time            ; _} -> sprintf "%.2f" time)
+      ; C.create "ID"   (fun {R.id   ; _} -> id)
+      ; C.create "Time" (fun {R.time ; _} -> sprintf "%.2f" time)
       ; C.create
           "Error"
           ~show:`If_not_empty
           ( function
-          | {T.output = Ok    _; _} -> ""
-          | {T.output = Error e; _} -> Exn.to_string e
+          | {R.output = Ok    _; _} -> ""
+          | {R.output = Error e; _} -> Exn.to_string e
           )
       ; C.create
           "Log"
           ~show:`If_not_empty
-          (fun {T.log; _} -> String.concat log ~sep:"\n")
+          (fun {R.log; _} -> String.concat log ~sep:"\n")
       ]
     in
     Textutils.Ascii_table.to_string
@@ -108,9 +109,10 @@ let reporter ~results_r =
         printf "\n\n%!";
         return (results, total_failures)
     | `Ok r ->
-        post_progress r.Test.output;
+        let {Test.Result.output; _} = r in
+        post_progress output;
         let total_failures =
-          match r.Test.output with
+          match output with
           | Ok    _ ->      total_failures
           | Error _ -> succ total_failures
         in
@@ -121,7 +123,7 @@ let reporter ~results_r =
   return total_failures
 
 let runner ~tests ~init_state ~results_w =
-  let rec run_parent {Test.meta; case; children} ~state:state1 =
+  let rec run_parent {Test.id; case; children} ~state:state1 =
     let log = Log.create () in
     let time_started = Unix.gettimeofday () in
     try_with ~extract_exn:true (fun () -> case state1 ~log)
@@ -129,7 +131,7 @@ let runner ~tests ~init_state ~results_w =
     let time = Unix.gettimeofday () -. time_started in
     Log.dump log
     >>= fun log ->
-    let result = {Test.meta; time; output; log} in
+    let result = Test.Result.({id; time; output; log}) in
     Pipe.write_without_pushback results_w result;
     match output with
     | Ok state2 -> run_children ~state:state2 children

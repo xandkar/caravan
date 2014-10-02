@@ -8,13 +8,12 @@ module Log : sig
 end
 
 module Test : sig
-  type meta =
-    { name        : string
-    ; description : string
-    }
+  module Id : sig
+    type t = string
+  end
 
   type 'state t =
-    { meta     : meta
+    { id       : Id.t
     ; case     : 'state -> log:Log.t -> 'state Deferred.t
     ; children : 'state t list
     }
