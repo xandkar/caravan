@@ -40,7 +40,7 @@ module Test = struct
   module Result = struct
     type 'state t =
       { id     : Id.t
-      ; time   : float
+      ; time   : Time.Span.t
       ; output : ('state, exn) Result.t
       ; log    : string list
       }
@@ -73,6 +73,7 @@ let reporter ~results_r =
   let report_of_results results =
     let module C = Textutils.Ascii_table.Column in
     let module R = Test.Result in
+    let time_span_to_string ts = sprintf "%.2f" (Time.Span.to_float ts) in
     let rows = List.rev results in
     let columns =
       [ C.create_attr
@@ -82,7 +83,7 @@ let reporter ~results_r =
           | {R.output = Error _; _} -> [`Bright; `White; `Bg `Red  ], " FAIL "
           )
       ; C.create "ID"   (fun {R.id   ; _} -> id)
-      ; C.create "Time" (fun {R.time ; _} -> sprintf "%.2f" time)
+      ; C.create "Time" (fun {R.time ; _} -> time_span_to_string time)
       ; C.create
           "Error"
           ~show:`If_not_empty
@@ -125,13 +126,14 @@ let reporter ~results_r =
 let runner ~tests ~init_state ~results_w =
   let rec run_parent {Test.id; case; children} ~state:state1 =
     let log = Log.create () in
-    let time_started = Unix.gettimeofday () in
+    let time_started = Time.now () in
     try_with ~extract_exn:true (fun () -> case state1 ~log)
     >>= fun output ->
-    let time = Unix.gettimeofday () -. time_started in
+    let time_finished = Time.now () in
+    let time_elapsed = Time.diff time_finished time_started in
     Log.dump log
     >>= fun log ->
-    let result = Test.Result.({id; time; output; log}) in
+    let result = Test.Result.({id; time=time_elapsed; output; log}) in
     Pipe.write_without_pushback results_w result;
     match output with
     | Ok state2 -> run_children ~state:state2 children
