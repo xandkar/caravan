@@ -20,7 +20,7 @@ end = struct
     let r, w = Pipe.create () in
     {r; w}
 
-  let post {w} ~msg =
+  let post {w; _} ~msg =
     let timestamp = Time.to_string (Time.now ()) in
     let msg = timestamp ^ " => " ^ msg in
     Pipe.write_without_pushback w msg
