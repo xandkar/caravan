@@ -3,6 +3,12 @@ open Async.Std
 
 
 module Log : sig
+  module Level : sig
+    type t =
+      | Info
+      | Debug
+  end
+
   module Msg : sig
     type t
   end
@@ -13,21 +19,38 @@ module Log : sig
 
   val initialize : unit -> t
 
-  val post : t -> string -> unit
+  val info : t -> string -> unit
+
+  val debug : t -> string -> unit
 
   val finalize : t -> Msg.t list Deferred.t
   (** [finalize] is idempotent. *)
 
-  val msgs_to_string : Msg.t list -> string
+  val msgs_to_string : ?filter:Level.t list option -> Msg.t list -> string
+  (** [filter] defaults to None, which means messages will not be filtered and
+    * all levels will be included. Otherwise specify a list of levels to
+    * include. *)
 end = struct
+  module Level = struct
+    type t =
+      | Info
+      | Debug
+
+    let to_string = function
+      | Info  -> "INFO"
+      | Debug -> "DEBUG"
+  end
+
   module Msg = struct
     type t =
       { timestamp : Time.t
+      ; level     : Level.t
       ; payload   : string
       }
 
-    let to_string {timestamp; payload} =
-      sprintf "%s => %s" (Time.to_string timestamp) payload
+    let to_string {timestamp; level; payload} =
+      let level = Level.to_string level in
+      sprintf "%s %s => %s" (Time.to_string timestamp) level payload
   end
 
   type channel =
@@ -48,12 +71,21 @@ end = struct
     let r, w = Pipe.create () in
     ref (Open {r; w})
 
-  let post t payload =
+  let post t level payload =
     match !t with
     | Open {w; _} ->
-        Pipe.write_without_pushback w {Msg.timestamp = Time.now (); payload}
+        let msg =
+          { Msg.timestamp = Time.now ()
+          ;     level
+          ;     payload
+          }
+        in
+        Pipe.write_without_pushback w msg
     | Closed _ ->
         raise Attempt_to_write_to_closed_log_channel
+
+  let info  t payload = post t Level.Info  payload
+  let debug t payload = post t Level.Debug payload
 
   let finalize t =
     match !t with
@@ -65,7 +97,13 @@ end = struct
     | Closed msgs ->
         return msgs
 
-  let msgs_to_string msgs =
+  let msgs_to_string ?(filter=None) msgs =
+    let msgs =
+      let module M = Msg in
+      match filter with
+      | None        -> msgs
+      | Some levels -> List.filter msgs ~f:(fun m -> List.mem levels m.M.level)
+    in
     String.concat ~sep:"\n" (List.map msgs ~f:Msg.to_string)
 end
 

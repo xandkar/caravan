@@ -5,11 +5,13 @@ module Log : sig
   type t
 
   exception Attempt_to_write_to_closed_log_channel
-  (** This can happen if [post] is attempted outside of a test case's scope.
-    * Which could only happen if user deliberatley leaks [t] outside the test
-    * case thunk. *)
+  (** This can happen if either [info] or [debug] is attempted outside of a
+    * test case's scope. Which could only happen if user deliberatley leaks [t]
+    * outside the test case thunk. *)
 
-  val post : t -> string -> unit
+  val info : t -> string -> unit
+
+  val debug : t -> string -> unit
 end
 
 module Test : sig
