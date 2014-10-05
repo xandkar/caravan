@@ -131,16 +131,26 @@ module Test = struct
     ; children : 'state t list
     }
 
+  type 'state add_child =
+       'state t
+    -> 'state t
+    -> 'state t
+
   type 'state add_children =
        'state t
     -> 'state t list
     -> 'state t
 
+  let add_child ({children; _} as t1) t2 =
+    {t1 with children = t2 :: children}
+
   let add_children ({children; _} as t) ts =
     {t with children = children @ ts}
+end
 
-  let (+) =
-    add_children
+module Test_infix = struct
+  let (-->) = Test.add_child
+  let (>>>) = Test.add_children
 end
 
 

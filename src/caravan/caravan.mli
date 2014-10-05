@@ -27,14 +27,23 @@ module Test : sig
     ; children : 'state t list
     }
 
+  type 'state add_child =
+       'state t
+    -> 'state t
+    -> 'state t
+
   type 'state add_children =
        'state t
     -> 'state t list
     -> 'state t
 
+  val add_child    : 'state add_child
   val add_children : 'state add_children
+end
 
-  val (+) : 'state add_children
+module Test_infix : sig
+  val (-->) : 'state Test.add_child
+  val (>>>) : 'state Test.add_children
 end
 
 val run
