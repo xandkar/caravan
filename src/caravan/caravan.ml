@@ -146,7 +146,7 @@ let reporter ~results_r =
     Textutils.Ascii_table.to_string
       ~display:Textutils.Ascii_table.Display.tall_box
       ~bars:`Unicode
-      ~limit_width_to:200   (* TODO: Should be configurable *)
+      ~limit_width_to:300   (* TODO: Should be configurable *)
       columns
       rows
   in
