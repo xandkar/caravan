@@ -169,7 +169,13 @@ let reporter ~results_r =
       | R.Skipped _                   -> na
     in
     let get_log = function
-      | R.Ran {R.log; _} -> Log.msgs_to_string log
+      | R.Ran {R.log; output; _} ->
+          let filter =
+            match output with
+            | Ok _    -> Some [Log.Level.Info]
+            | Error _ -> None
+          in
+          Log.msgs_to_string log ~filter
       | R.Skipped _      -> na
     in
     let rows = List.rev results in

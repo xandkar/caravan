@@ -10,8 +10,10 @@ module Log : sig
     * outside the test case thunk. *)
 
   val info : t -> string -> unit
+  (** Info messages are always reported. *)
 
   val debug : t -> string -> unit
+  (** Debug messages are only reported for failed test cases. *)
 end
 
 module Test : sig
