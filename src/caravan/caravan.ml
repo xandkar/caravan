@@ -189,7 +189,7 @@ let runner ~tests ~init_state ~results_w =
   let rec run_parent {Test.id; case; children} ~state =
     let log_channel = Log.initialize () in
     let time_started = Time.now () in
-    try_with ~extract_exn:true (fun () -> case state ~log:log_channel)
+    try_with ~extract_exn:false (fun () -> case state ~log:log_channel)
     >>= fun output ->
     let time_finished = Time.now () in
     let time_elapsed = Time.diff time_finished time_started in
