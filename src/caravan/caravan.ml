@@ -254,7 +254,7 @@ let runner ~tests ~init_state ~results_w =
     in
     Pipe.write_without_pushback results_w result;
     match output with
-    | Ok state ->  run_children children ~state:state
+    | Ok state ->  run_children children ~state
     | Error _  -> skip_children children
   and run_children tests ~state =
     Deferred.List.iter
