@@ -607,3 +607,14 @@ let dispatch_default = MyOCamlbuildBase.dispatch_default package_default;;
 # 608 "myocamlbuild.ml"
 (* OASIS_STOP *)
 Ocamlbuild_plugin.dispatch dispatch_default;;
+
+flag
+  [ "ocaml"
+  ; "compile"
+  ]
+  ( S [ A "-w"
+      ; A "A-33-44"
+      ; A "-warn-error"
+      ; A "A"
+      ]
+  )
