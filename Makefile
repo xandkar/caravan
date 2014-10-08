@@ -12,7 +12,9 @@ OASIS_GENERATED_FILES :=  \
 	clean_oasis \
 	clean_ocaml \
 	default \
-	deps
+	deps \
+	install \
+	uninstall
 
 
 default: \
@@ -31,6 +33,12 @@ all: \
 	setup.ml \
 	setup.data \
 	build
+
+install: setup.data
+	@ocaml setup.ml -install
+
+uninstall: setup.data
+	@ocaml setup.ml -uninstall
 
 setup.ml:
 	@oasis setup
