@@ -11,7 +11,7 @@ License     : MIT
 Library caravan
   Path           : ./src/caravan
   FindlibName    : caravan
-  Install        : false
+  Install        : true
   Modules        : Caravan
   BuildTools     : ocamlbuild
   CompiledObject : native
