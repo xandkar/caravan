@@ -1,7 +1,8 @@
 OASIS_GENERATED_FILES :=  \
 	setup.data \
 	setup.ml \
-	_tags
+	_tags \
+	src/caravan/META
 
 
 .PHONY: \

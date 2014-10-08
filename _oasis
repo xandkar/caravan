@@ -7,6 +7,7 @@ Synopsis    : Framework for writing integration tests in, but not necessarily
               for, OCaml, loosely inspired by Erlang/OTP's Common Test.
 Authors     : Siraaj Khandkar <siraaj@khandkar.net>
 License     : MIT
+Plugins     : META (0.4)
 
 Library caravan
   Path           : ./src/caravan
