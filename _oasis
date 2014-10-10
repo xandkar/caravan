@@ -31,3 +31,16 @@ Executable example_hello
                  , core
                  , async
                  , caravan
+
+Executable example_riak_crud
+  path           : ./examples/riak_crud
+  mainis         : riak_crud.ml
+  buildtools     : ocamlbuild
+  install        : false
+  compiledobject : native
+  builddepends   : threads
+                 , core
+                 , async
+                 , caravan
+                 , uri
+                 , cohttp.async
