@@ -146,6 +146,20 @@ module Test = struct
 
   let add_children ({children; _} as t) ts =
     {t with children = children @ ts}
+
+  let iter ts ~f =
+    let rec iter_parent t ~f =
+      f t;
+      iter_children t.children ~f
+    and iter_children ts ~f =
+      List.iter ts ~f:(iter_parent ~f)
+    in
+    iter_children ts ~f
+
+  let get_ids ts =
+    let ids = ref [] in
+    iter ts ~f:(fun t -> ids := t.id :: !ids);
+    !ids
 end
 
 module Test_infix = struct
@@ -265,7 +279,17 @@ let runner ~tests ~init_state ~results_w =
   run_children tests ~state:init_state >>| fun () ->
   Pipe.close results_w
 
+let assert_unique_ids tests =
+  let id_unit_pairs = List.map (Test.get_ids tests) ~f:(fun id -> id, ()) in
+  match String.Table.of_alist_report_all_dups id_unit_pairs with
+  | `Ok _ -> return ()
+  | `Duplicate_keys ids ->
+      eprintf "Duplicate test IDs: %s\n" (List.to_string ids ~f:Fn.id);
+      exit 1
+
 let run ~tests ~init_state =
+  assert_unique_ids tests
+  >>= fun () ->
   let results_r, results_w = Pipe.create () in
   don't_wait_for (runner   ~results_w ~tests ~init_state);
                   reporter ~results_r
