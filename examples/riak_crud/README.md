@@ -11,6 +11,13 @@ Usage
 $ make
 ```
 
+Example output when Riak is off:
+
+![1 fail, 3 skip](https://raw.github.com/ibnfirnas/caravan/master/examples/riak_crud/screenshot-riak-off.jpg)
+
+Children of a failed test are skipped, since they're assumed to depend on state
+produced by the parent test.
+
 The default Make target (`all`) will perform everything:
 
 - install deps

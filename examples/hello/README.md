@@ -11,6 +11,10 @@ Usage
 $ make
 ```
 
+Example output:
+
+![1 pass, 1 fail](https://raw.github.com/ibnfirnas/caravan/master/examples/hello/screenshot.jpg)
+
 The default Make target (`all`) will perform everything:
 
 - install deps
