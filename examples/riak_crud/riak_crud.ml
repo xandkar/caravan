@@ -219,8 +219,8 @@ let () =
     Command.async_basic
       ~summary:""
       ( empty
-      + flag "-host" (optional_with_default host string) ~doc:"Riak host."
-      + flag "-port" (optional_with_default port int   ) ~doc:"Riak port."
+      + flag "-host" (optional_with_default host string) ~doc:" Riak host."
+      + flag "-port" (optional_with_default port int   ) ~doc:" Riak port."
       )
       (fun host port () -> main ~config:{C.default with C.host; port})
   in
