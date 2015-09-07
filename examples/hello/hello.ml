@@ -1,7 +1,6 @@
 open Core.Std
 open Async.Std
 
-
 module Log  = Caravan.Log
 module Test = Caravan.Test
 
@@ -21,7 +20,6 @@ let test_hello_fail =
     return state
   in
   {Test.id = "test_hello_fail"; case; children = []}
-
 
 let main () =
   let tests =
