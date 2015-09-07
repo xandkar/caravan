@@ -13,7 +13,8 @@ $ make
 
 Example output:
 
-![1 pass, 1 fail](https://raw.github.com/ibnfirnas/caravan/master/examples/hello/screenshot.jpg)
+![1 pass, 1 fail](https://raw.githubusercontent.com/ibnfirnas/caravan/master/examples/hello/screenshot.png)
+
 
 The default Make target (`all`) will perform everything:
 
