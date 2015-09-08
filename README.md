@@ -6,6 +6,12 @@ Erlang/OTP's ["Common Test"][].
 
 ["Common Test"]: http://www.erlang.org/doc/apps/common_test/basics_chapter.html
 
+Status
+------
+
+Prototype. Already useful, but API is expected to frequently change (within
+rules of semver!). For instance, see [Issue 11](https://github.com/ibnfirnas/caravan/issues/11).
+
 Example
 -------
 
