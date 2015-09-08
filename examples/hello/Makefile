@@ -15,11 +15,14 @@ deps:
 clean:
 	@ocamlbuild -clean
 
-caravan.cmi: _build
+caravan.cmi: caravan _build
 	@cp ../../_build/src/caravan/caravan.cmi _build
 
-caravan.cma: _build
+caravan.cma: caravan _build
 	@cp ../../_build/src/caravan/caravan.cma _build
+
+caravan:
+	@cd ../.. && make && cd -
 
 _build:
 	@mkdir -p _build
