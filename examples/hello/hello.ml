@@ -30,4 +30,5 @@ let main () =
   Caravan.run ~tests ~init_state:()
 
 let () =
-  Command.run (Command.async_basic ~summary:"" Command.Spec.empty main)
+  don't_wait_for (main ());
+  never_returns (Scheduler.go ())
