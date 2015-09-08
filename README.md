@@ -9,7 +9,12 @@ Erlang/OTP's ["Common Test"][].
 Example
 -------
 
-From [examples/hello](examples/hello)
+Simple example, from [examples/hello](examples/hello), which does not actually
+use state or does any IO; for an example that does - see:
+[examples/riak_crud](examples/riak_crud).
+
+A test case fails if it raises any exception. Log messages with level `info`
+are always reported, while debug messages only show-up if the test case fails.
 
 ```ocaml
 let test_hello_pass =
